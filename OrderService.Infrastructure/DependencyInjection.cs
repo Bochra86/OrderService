@@ -13,7 +13,7 @@ public static class DependencyInjection
             options.UseNpgsql(config.GetConnectionString("OrderServiceDb")));
 
         services.AddScoped<IOrderRepository, OrderRepository>();
-       
+        services.AddScoped<ICacheService, RedisCacheService>();
 
         return services;
     }
