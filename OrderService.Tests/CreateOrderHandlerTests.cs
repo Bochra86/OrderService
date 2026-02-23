@@ -1,45 +1,59 @@
-﻿namespace OrderService.Tests;
+﻿using Microsoft.Extensions.Logging;
+using Moq;
+using OrderService.Application.Commands;
+using OrderService.Application.Interfaces;
+using OrderService.Domain;               
+using OrderService.Domain.Entities;
+using OrderService.Domain.Events;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace OrderService.Tests;
 
 public class CreateOrderHandlerTests
 {
-  
-    private readonly Moq<IOrderRepository> _moqRepo;
-    private readonly Moq<ICacheService> _moqRedis;
-    private readonly Moq<IEventBus> _moqKafka;
-    private readonly Moq<ILogger<CreateOrderHandler>> _moqLogging;
+    private readonly Mock<IOrderRepository> _repoMock;
+    private readonly Mock<ICacheService> _cacheMock;
+    private readonly Mock<IEventBus> _eventBusMock;
+    private readonly Mock<ILogger<CreateOrderHandler>> _loggerMock;
 
     private readonly CreateOrderHandler _handler;
 
-    public CreateOrderHandlerTests( )
+    public CreateOrderHandlerTests()
     {
-        _moqRepo = new Moq<IOrderRepository>(); 
-        _moqRedis = new Moq<ICacheService>();   
-        _moqKafka = new Moq<IEventBus>();   
-        _moqLogging = new Moq<ILogger<CreateOrderHandler>>;
-        
-        _handler = new CreateOrderHandler(_moqRepo.Object, _moqRedis.Object, _moqKafka.Object, _moqLogging.Object)
+        _repoMock = new Mock<IOrderRepository>();
+        _cacheMock = new Mock<ICacheService>();
+        _eventBusMock = new Mock<IEventBus>();
+        _loggerMock = new Mock<ILogger<CreateOrderHandler>>();
+
+        _handler = new CreateOrderHandler(
+            _repoMock.Object,
+            _cacheMock.Object,
+            _eventBusMock.Object,
+            _loggerMock.Object);
     }
 
-
     [Fact]
-    public void HandleAsync_ShouldRetursId()
+    public async Task HandleAsync_ShouldReturnId()
     {
-        //1.Arrange
+        // 1. Arrange
         var cmd = new CreateOrderCommand(50);
-        var order= new Order(cmd.Total);
 
-        _moqRepo.Setup(x=> x.AddAsync(It.IsAny<object>()))
-            .ReturnsAsync(null);
+        _repoMock
+            .Setup(x => x.AddAsync(It.IsAny<Order>()))
+            .Returns(Task.CompletedTask);
 
-        _moqKafka.Setup(x=> x.PublishAsync(It.IsAny<object>()))
-            .ReturnsAsync(Task.CompletedTask);
+        _eventBusMock
+            .Setup(x => x.PublishAsync(It.IsAny<OrderCreatedEvent>()))
+            .Returns(Task.CompletedTask);
 
-        //2. Act
+        // 2. Act
         var id = await _handler.HandleAsync(cmd);
 
-        //3.Assert
-        Assert.NotNull(id);
-        _moqRepo.Verify(x => x.AddAsync(order), Times.Once);
-        _moqKafka.Verify(x => x.PublishAsync(new OrderCreatedEvent(order.Id)), Times.Once);    
+        // 3. Assert
+        Assert.NotEqual(Guid.Empty, id);
+
+        _repoMock.Verify(x => x.AddAsync(It.IsAny<Order>()), Times.Once);
+        _eventBusMock.Verify(x => x.PublishAsync(It.IsAny<OrderCreatedEvent>()), Times.Once);
     }
 }
