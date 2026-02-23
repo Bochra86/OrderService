@@ -1,21 +1,5 @@
 name: CI
 
-on: 
-  push:
-    branches: [ main]
-
-jobs: 
-  build: 
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/chechout@v3
-      - uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 8.0.x
-
-name: CI
-
 on:
   push:
     branches: [ main ]
@@ -29,7 +13,8 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: '10.0.x'
+          include-prerelease: true
 
       - name: Restore
         run: dotnet restore
